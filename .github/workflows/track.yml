@@ -16,12 +16,7 @@ on:
         description: "(set by the tracker itself) wait for the earlier run to finish first"
         type: boolean
         default: false
-  push:
-    branches: [main]
-    paths: [watchlist.enc]   # a stock added from the Claude chat: start tracking if no run is active
-  schedule:
-    - cron: "35 3 * * 1-5"        # 9:05 am IST - back-up start (the outside timer starts it on time)
-    - cron: "5,35 4-9 * * 1-5"    # every 30 min, 9:35 am - 3:05 pm IST - restarts tracking if a run stopped
+  # schedule and push triggers are OFF until Nitin chooses the price source (13 Nov 2026)
 
 permissions:
   contents: write   # only to save the encrypted watch list when a stock is added / removed / entered from Slack
