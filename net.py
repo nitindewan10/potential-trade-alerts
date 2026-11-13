@@ -9,10 +9,11 @@ import urllib.request
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
 ALLOW = {
-    # free market data (read only)
+    # free market data (read only): Yahoo chart API (+ its session cookie and crumb), TradingView scanner
     ("GET", "query1.finance.yahoo.com"): ("/v8/finance/chart/",),
-    ("GET", "query2.finance.yahoo.com"): ("/v8/finance/chart/",),
-    ("GET", "www.google.com"): ("/finance/quote/",),
+    ("GET", "query2.finance.yahoo.com"): ("/v8/finance/chart/", "/v1/test/getcrumb"),
+    ("GET", "fc.yahoo.com"): ("/",),
+    ("POST", "scanner.tradingview.com"): ("/india/scan",),
     # Slack: post, upload a chart, read the channel and threads, join the channel
     ("POST", "slack.com"): ("/api/chat.postMessage", "/api/files.getUploadURLExternal",
                             "/api/files.completeUploadExternal", "/api/conversations.join"),

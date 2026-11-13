@@ -59,9 +59,9 @@ class FakeFeed:
             cs = [(t, o * k, h * k, l * k, c * k, v) for t, o, h, l, c, v in cs]
         return {"price": p, "time": now, "prev_close": p / 1.01, "candles": cs, "age_s": 30}
 
-    def google(self, gsym):
-        sym = gsym.split(":")[0]
-        return {"price": self.prices[sym](self.clock()), "time": int(self.clock())}
+    def second(self, tvsym):
+        sym = tvsym.split(":")[1]
+        return {"price": self.prices[sym](self.clock()), "time": None}
 
 
 class FakeSlack(Slack):

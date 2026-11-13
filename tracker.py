@@ -140,11 +140,10 @@ class Tracker:
             q["src"] = "Yahoo"
         except Exception:
             q = None
-        if q is None or q.get("price") is None or (q.get("age_s") or 0) > 900:
+        if q is None or q.get("price") is None:
             try:
-                g = self.feed.google(F.google_symbol(it))
-                if q is None or q.get("price") is None or (g.get("time") or 0) > (q.get("time") or 0):
-                    q = {"price": g["price"], "time": g.get("time") or int(self.clock()), "candles": [], "src": "Google"}
+                g = self.feed.second(F.tv_symbol(it))
+                q = {"price": g["price"], "time": int(self.clock()), "candles": [], "src": "TradingView, 15 min delayed"}
             except Exception:
                 pass
         if q is None or q.get("price") is None:
@@ -154,8 +153,8 @@ class Tracker:
     def confirm(self, it, price, level, s):
         """A second source must agree before an instant message (a bad tick must never trigger one)."""
         try:
-            g = self.feed.google(F.google_symbol(it))
-            return s * (g["price"] - level) >= 0 or abs(g["price"] / price - 1) <= 0.004
+            g = self.feed.second(F.tv_symbol(it))  # 15 min delayed: agrees unless the live price is a bad tick
+            return s * (g["price"] - level) >= 0 or abs(g["price"] / price - 1) <= 0.015
         except Exception:
             self.sleep(20)
             try:
@@ -605,12 +604,16 @@ def main(argv=None):
                 print(f"Yahoo {sym}: ok, last price {round((q.get('age_s') or 0) / 60, 1)} min old, {len(q['candles'])} candles")
             except Exception as e:
                 print(f"Yahoo {sym}: FAILED {type(e).__name__} {str(e)[:60]}")
-        for sym in ("NIFTY_50:INDEXNSE", "RELIANCE:NSE"):
+        for sym in ("NSE:NIFTY", "NSE:RELIANCE"):
             try:
-                g = fd.google(sym)
-                print(f"Google {sym}: ok" + (f", {round((time.time() - g['time']) / 60, 1)} min old" if g.get("time") else ""))
+                print(f"TradingView {sym}: ok, {fd.second(sym)['price']}")
             except Exception as e:
-                print(f"Google {sym}: FAILED {type(e).__name__} {str(e)[:60]}")
+                print(f"TradingView {sym}: FAILED {type(e).__name__} {str(e)[:60]}")
+        try:
+            print(f"Yahoo RELIANCE.NS hourly: {len(fd.chart('RELIANCE.NS', '1mo', '60m')['candles'])} candles · daily: "
+                  f"{len(fd.chart('RELIANCE.NS', '2y', '1d')['candles'])} candles")
+        except Exception as e:
+            print(f"Yahoo history: FAILED {type(e).__name__}")
         return 0
     try:
         wl = vault.load(WATCH_FILE)

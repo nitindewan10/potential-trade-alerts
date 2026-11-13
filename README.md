@@ -29,7 +29,7 @@ and weekly levels carried down. Each block links to the full Trade Analyzer view
 if connected; otherwise ask in the Claude chat "Potential Trade Alerts").
 
 ## Safety and privacy
-- `net.py` allows only: the free price pages (Yahoo Finance chart API, Google Finance quote page), Slack, the
+- `net.py` allows only: the free price pages (Yahoo Finance chart API with its session cookie, TradingView's public scanner as a bad-tick check), Slack, the
   optional Claude routine, and this repository's own runs. There is no broker at all – nothing here can trade.
 - The watch list (`watchlist.enc`) is **encrypted** (key in the secret `WATCHLIST_KEY`): this public repository shows
   the code, never the stocks, levels or Slack IDs. Run logs print counts only.
