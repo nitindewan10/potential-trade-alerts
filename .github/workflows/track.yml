@@ -1,0 +1,78 @@
+name: Potential Trade Alerts
+
+# Tracks the stocks we picked but have NOT entered (encrypted watch list), 9:15 am - 3:30 pm IST on trading days:
+# hourly messages in Slack #potential-trades-positive / #potential-trades-negative with a chart per stock, plus an
+# instant message when a stock crosses our level. Code only - no broker, no orders, no Claude unless asked.
+# One run tracks for up to 5 h 35 min, then starts a fresh run itself (a GitHub job may run 6 h at most).
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "run = normal · probe = test the free price feed (posts nothing) · test = one pass, posts nothing · update = post one hourly update now · hello = post the welcome messages"
+        type: choice
+        options: [run, probe, test, update, hello]
+        default: run
+      handover:
+        description: "(set by the tracker itself) wait for the earlier run to finish first"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: [watchlist.enc]   # a stock added from the Claude chat: start tracking if no run is active
+  schedule:
+    - cron: "35 3 * * 1-5"        # 9:05 am IST - back-up start (the outside timer starts it on time)
+    - cron: "5,35 4-9 * * 1-5"    # every 30 min, 9:35 am - 3:05 pm IST - restarts tracking if a run stopped
+
+permissions:
+  contents: write   # only to save the encrypted watch list when a stock is added / removed / entered from Slack
+  actions: write    # only to see whether a tracker is already running and to start the hand-over run
+
+jobs:
+  track:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -q -r requirements.txt
+      - name: Is a tracker already running?
+        id: other
+        if: ${{ !inputs.mode || inputs.mode == 'run' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 ghruns.py ${{ inputs.handover && 'wait' || 'check' }}
+      - name: Load memory (what was posted, threads, 30-day event log)
+        if: steps.other.outputs.skip != '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: pta-state-${{ github.run_id }}
+          restore-keys: pta-state-
+      - name: Track (read-only prices, Slack messages)
+        id: run
+        if: steps.other.outputs.skip != '1'
+        env:
+          WATCHLIST_KEY: ${{ secrets.WATCHLIST_KEY }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          CLAUDE_ROUTINE_URL: ${{ secrets.CLAUDE_ROUTINE_URL }}
+          CLAUDE_ROUTINE_TOKEN: ${{ secrets.CLAUDE_ROUTINE_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          before="$(sha256sum state.json 2>/dev/null || true)"
+          rc=0
+          python3 tracker.py --mode "${{ inputs.mode || 'run' }}" || rc=$?
+          after="$(sha256sum state.json 2>/dev/null || true)"
+          if [ -f state.json ] && [ "$before" != "$after" ]; then echo "changed=1" >> "$GITHUB_OUTPUT"; fi
+          exit $rc
+      - name: Save memory
+        if: always() && steps.run.outputs.changed == '1'
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: pta-state-${{ github.run_id }}-${{ github.run_attempt }}
