@@ -10,7 +10,7 @@ on:
       mode:
         description: "run = normal · probe = test the free price feed (posts nothing) · test = one pass, posts nothing · update = post one hourly update now · hello = post the welcome messages"
         type: choice
-        options: [run, probe, test, update, hello]
+        options: [run, probe, sources, test, update, hello]
         default: run
       handover:
         description: "(set by the tracker itself) wait for the earlier run to finish first"
@@ -66,7 +66,8 @@ jobs:
         run: |
           before="$(sha256sum state.json 2>/dev/null || true)"
           rc=0
-          python3 tracker.py --mode "${{ inputs.mode || 'run' }}" || rc=$?
+          if [ "${{ inputs.mode }}" = "sources" ]; then python3 probe_sources.py || rc=$?; else
+            python3 tracker.py --mode "${{ inputs.mode || 'run' }}" || rc=$?; fi
           after="$(sha256sum state.json 2>/dev/null || true)"
           if [ -f state.json ] && [ "$before" != "$after" ]; then echo "changed=1" >> "$GITHUB_OUTPUT"; fi
           exit $rc
